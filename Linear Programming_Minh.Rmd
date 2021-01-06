@@ -1,0 +1,333 @@
+---
+title: "Mid Term Project"
+author: "Minh Nguyen"
+date: "5/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r modules, include=FALSE}
+library(dplyr)
+library(lpSolveAPI)
+library(igraph)
+library(knitr)
+library(kableExtra)
+`%>%` <- magrittr::`%>%`
+```
+
+
+Africa is often considered to be the most disease and disaster-prone continent. Moreover, African countries and their citizens are also suffering from poor living conditions, lack of infrastructure, minimal public healthcare, and unstable Government. Thereby, the IFRC needs to develop an aid disbursement plan for Africa, supplying them with foods, medicines, working materials, and human labor as well. This memo aims to provide an in-depth analysis of available transportation routes for airplanes, ships, and trucks to transfer goods and supplies from the U.S to nine Africa countries. There are 3 alternative plans presented in the memo, namely Shortest Path (ignore cost), Minimum Cost and Maximum Flow (with various restrictions from the nine African countries).
+### **The Network**  
+  In order to illustrat the African Aiding Plan more vividly, the following graph is the network of transportation between the U.S and the nine African countries: 
+
+```{r Question 1-Plot the network, include=FALSE}
+#Read the file, skip the first line so we can use column name later:
+df <- read.csv ('5260_Aiding_Africa_Data.csv', header = TRUE, skip = 1 )
+
+#name the columns with out missing values:
+Tab1 <- df [1:3, 1:3] #Only count to 3 cuz header and skip
+Tab2 <- df [1:3, 5:6]
+Tab3 <- df [1:30, 8:12]
+Tab4 <- df [1:9, 14:15]
+Tab5 <- df [1:15, 17:19]
+Tab6 <- df [1:6, 21:23]
+
+#Set up the nodes:
+Tab4$City <- as.character(Tab4$City)
+nodes<- rbind('1' = c('New York, NY', '1000000'), '2' = c('Jacksonville, FL', '1000000'), Tab4)
+nodes$Requirements <- as.integer(nodes$Requirements)
+
+#Join Tab1 and Tab3:
+Tab8 <- left_join(Tab3, Tab1, by = c("Type.1" = "Type"))
+Tab8$Time <- Tab8$Distance/ Tab8$Speed
+
+#Set up the links:
+links <- Tab8[,1:2]
+
+#Make the graph:
+
+net <-graph_from_data_frame( d= links, vertices = nodes, directed = TRUE)
+
+#Make it beautiful (and informative):
+net$layout <- matrix(c(-20,-20,50,50,50,50,50,50,120,120,120,
+                     200,100,250,200,150,100,50,0,150,100,200),nc=2)
+
+E(net)$Type <- Tab8$Type.1
+
+E(net)$weight <- Tab8$Time
+
+E(net)$color[E(net)$Type == 'Truck'] <- 'brown2'
+E(net)$color[E(net)$Type == 'Airplane'] <- 'chartreuse4'
+E(net)$color[E(net)$Type == 'Ship'] <- 'blueviolet'
+
+#Plot the graph
+plot(net,vertex.size = 25,vertex.label.cex=1.5, edge.label = round(E(net)$weight,2), edge.arrow.size = 0.4)
+
+
+
+
+```
+
+
+## Shortest path:      
+```{r Question 2- shortest path solve with Igraph}
+#Set upt and find distance:
+
+dist <- shortest.paths(net, v= V(net), to= V(net))
+
+#The table with the above distancee matrix
+kable(dist, caption = "Distance Matrix")
+
+#write to a CSV file of the distance matrix:
+write.csv(dist, 'distance.csv')
+
+#Find the shortest path between cities:
+shdist <-distances(net, c("New York, NY", 'Jacksonville, FL'), 
+          c('Kosongo, D.R. Congo' ,"Ndjamena, Chad",
+            'Niamey, Niger'))
+write.csv(shdist, 'Shortest.csv')
+#Plot the minimum spaning treee:
+shortest <- mst(net, weight = E(net)$weight)
+plot (shortest)
+```
+
+## Minimum Costs:  
+```{r Question 3- Minimum Costs Flow}
+lp <- make.lp(0,30)
+obj_fn <- c(32,30,30,45,50,55,56,48,44,49,57,61,5,5,9,3,4,7,3,5,8,22,19,4,24,22,23,28,25,2)
+set.objfn(lp,obj_fn)
+```
+
+
+```{r Question 3- Minimum Costs Flow- Hidden Trunk, include=FALSE}
+lp.control(lp, sense = 'min')
+```
+
+
+```{r Question 3- Minimum Costs Flow- Continue}
+#setup the node constraints:
+add.constraint(lp, c( 240, 240, 240, 150, 150, 150, 0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ), "=", 500000)  #NY
+add.constraint(lp, c( 0, 0, 0, 0, 0, 0, 240  , 240  , 240  , 150  , 
+                      150  ,150  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ), "=", 500000)  #FL
+
+add.constraint(lp, c( -240, 0, 0, 0, 0, 0, -240  , 0  , 0  , 0  , 
+                      0  , 0  , 17.7  , 17.7  , 17.7  , 0  , 0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ), "=", -50000)  #Dakar
+
+add.constraint(lp, c( 0  ,-240, 0  , 0  , 0  , 0  , 0  ,-240, 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 17.7, 17.7  ,17.7, 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ), "=", -100000)  #Libre
+
+add.constraint(lp, c( 0,   0,-240,   0,   0,   0,   0  , 0  ,-240, 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,17.7, 17.7, 
+                      17.7, 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ), "=", -130000)  #Luanda
+
+add.constraint(lp, c( 0,   0,   0,-150,   0,   0,   0  , 0  , 0  ,-150  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 
+                      0  , 150  , 150  , 150  , 0  , 0  , 0  , 0  , 0  , 0  ), "=", -90000)  #Khartom
+
+add.constraint(lp, c( 0,   0,   0,   0, -150,   0,   0  , 0  , 0  , 0  , 
+                      -150  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 150  , 150  , 150  , 0  , 0  , 0  ), "=", -150000)  #Lusaka
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,-150,   0  , 0  , 0  , 0  , 
+                      0  ,-150  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 150  , 150  , 150  ), "=", -120000)  #Nairo
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,   0,   0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 
+                      0  ,-150, 0  , 0  ,-150, 0  , 0  ,-150, 0  , 0  ), "=", -100000)  #Niger Air only
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,   0,   0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  ,-17.7, 0  , 0  ,-17.7, 0  , 0  ,-17.7, 
+                      0  , 0  ,-150, 0  , 0  , -150, 0  , 0  , -150  , 0  ), "=", -180000)  #Congo
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,   0,   0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  ,-17.7, 0  , 0  ,-17.7, 0  , 0  , 
+                      -17.7, 0  , 0  ,-150, 0  , 0  ,-150, 0  , 0  ,-150), "=", -80000)  #Chad
+
+#Set up the Link constraints:
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,   0,   0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  ,1, 0  , 0  ,1, 0  , 0  , 
+                      1, 0  , 0  ,0, 0  , 0  ,0, 0  , 0  ,0), "<=", 840)  #Chad trucks limit
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,   0,   0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  ,0, 0  , 0  ,0, 0  , 0  , 
+                      0, 0  , 0  ,0, 0  , 0  ,1, 0  , 0  ,0), "<=", 200)  #Lusa-Chad flights limit
+
+add.constraint(lp, c( 0,   0,   0,   0,   0,   0,   0  , 0  , 0  , 0  , 
+                      0  , 0  , 0  , 0  ,0, 0  , 0  ,0, 0  , 0  , 
+                      0, 0  , 0  ,1, 0  , 0  ,0, 0  , 0  ,0), "<=", 200)  #Khar-Chad flights limit
+
+solve (lp)
+
+
+dimnames(lp) <- list(c('New York', 'Jacksonville FL','Dakar, Senegal', 'Libreville, Gabon', 'Luanda, Angola', 'Khartoum, Sudan', 'Lusaka, Zambia', 'Nairobi, Kenya',
+'Niamey, Niger', 'Kosongo, D.R. Congo', 'Ndjamena, Chad', 'Chad Truck limit',
+'Lusa-Chad flights limit', 'Khar-Chad flights limit'), 
+                  c('NY-DaKar','NY-Liber','NY-Luanda', 'NY-Khar','NY-Lusaka','NY-Nairo',
+                    'FL-Dakar','FL-Liber','FL-Luanda','FL-Khar','FL-Lusaka','FL-Nairo',
+                    'Dakar-Niger','Dakar-Congo','Dakar-Chad',
+                    'Liber-Niger', 'Liber- Congo', 'Liber-Chad',
+                    'Luanda-Niger', 'Luanda- Congo','Luanda-Chad',
+                    'Khar-Niger','Khar-Congo','Khar-Chad',
+                    'Lusaka-Niger','Lusaka-Congo','Lusaka-Chad',
+                    'Nairo-Niger','Nairo-Congo','Nairo-Chad'))
+
+#Write the model to double check:
+write.lp(lp, "Minimum Cost Model", type ='lp')
+
+#Make the sensitivity Analysis:
+ps <- get.primal.solution(lp)
+obj_sa <- get.sensitivity.obj(lp)
+rhs_sa <- get.sensitivity.rhs(lp)
+
+nv <- length(get.variables(lp))
+mc <- length(get.constr.type(lp))
+ov <- paste0("Objective Value = ", ps[1])
+
+sa_tab <- rbind(ps[2:(nv + mc + 1)], 
+                round(c(rhs_sa$duals[1:mc], obj_fn), 2),
+                round(c(rhs_sa$dualsfrom[1:mc],obj_sa$objfrom), 2),
+                round(c(rhs_sa$dualstill[1:mc],obj_sa$objtill), 2)) 
+colnames(sa_tab) <- c(rownames(lp), colnames(lp))
+rownames(sa_tab) <- c("solution", "duals/coef", "Sens From", "Sens Till")  
+
+sa_tab <- ifelse(sa_tab == -1.000e+30, "-inf", sa_tab)
+sa_tab <- ifelse(sa_tab == 1.000e+30, "inf", sa_tab)
+
+kable(sa_tab, format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>% 
+  add_footnote(label = ov, notation = "none")
+
+#write to a file:
+write.csv(sa_tab, 'Plan2.csv')
+
+```
+
+## Maximum Flow:  
+```{r}
+#Set up the model:
+lp2 <-make.lp(0,30)
+obj_fn2 <- c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)
+set.objfn(lp2, obj_fn2)
+```
+
+
+```{r include=FALSE}
+lp.control(lp2, sense = 'max')
+
+```
+
+```{r}
+#Set up the node constraints:
+add.constraint(lp2, c(150,	150,	150,	240,	240,	240,    0,    0,    0,    0,    0,    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0),
+               "<=", 500000) #NY
+add.constraint(lp2, c(  0,	  0,	  0,	  0,	  0,	  0,	150,	150,	150,	240,	240,	240,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0),
+               "<=", 500000) #FL
+add.constraint(lp2, c(-150,	0,	0,	0,	0,	0,	-150,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0), 
+               "<=", 150000) #Lusaka
+add.constraint(lp2, c(0,	-150,	0,	0,	0,	0,	0,	-150,	  0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0), 
+               "<=", 120000) #Nairobi
+add.constraint(lp2, c(0,	  0,	-150,	0,	0,	0,	0,	0,	-150,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	150,	0,	0,	0), 
+               "<=", 90000) #Khartoum
+add.constraint(lp2, c(0,	 0, 	0, 	-240,	0,	0,	0,	0,	 0,	-240,	0,	0,	0,	0,	0, 17.7,	 0,	 0,	 0,	 0,	 0,	 17.7,	0,	0,	0,	0,	0,	17.7,	 0,	 0), 
+               "<=", 100000) #Libreville
+add.constraint(lp2, c(0,	 0,	 0,	  0,	-240,	0,	0,	0,	 0,	 0,	-240,	0,	0,	0,	0,	 0,	17.7,	 0,	 0,	 0,	 0,	 0,	 17.7,	 0,	0,	0,	0,	 0,	 17.7, 0), 
+               "<=", 130000) #Luanda
+add.constraint(lp2, c(0,	 0,	 0,	  0,	 0,	-240,	0,	0,	 0,	 0,	  0,	-240,	0,	0,	0,	0,	0,17.7,	0,	0,	0,	0,	0,	17.7,	 0,	0,	0,	0,	0,	17.7), 
+               "<=", 50000) #Dakar
+add.constraint(lp2, c(0,	 0,	 0,	  0,	 0,	  0,	0,	0,	 0,	 0,	  0,	 0,	-150,	0,	-150,	-17.7,-17.7,-17.7,	0,	0,	0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0), 
+               "<=", 100000) # Niger
+add.constraint(lp2, c(0,	 0,	 0,	 0,	   0,	  0,	0,	0,	 0,	 0,	  0,	 0,	 0,	   0,	  0,	  0,	0,	0,-150,-150,-150,-17.7,-17.7,-17.7,	0,0,0,0, 0,	 0), 
+               "<=", 180000) # Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,  -0, -150,-150,-17.7,-17.7,-17.7), 
+               "<=", 80000) # Chad
+# Set up links constraints
+add.constraint(lp2, c(150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,  0,  0,   0,    0,     0,     0), 
+               "<=", 45000) #NY - Lusaka
+add.constraint(lp2, c(0,	150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0, 0,   0,    0,     0,     0), 
+               "<=", 75000) #NY - Nairobi
+add.constraint(lp2, c(0,	0,	150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,  0,    0,     0), 
+               "<=", 75000) #NY - Khartoum
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,     0, 0,    0), 
+               "<=", 75000) #FL - Lusaka
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 105000) #FL - Nairobi
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0, 150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 90000) #FL -Khartoum
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	0,150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 30000) #Lusaka - Nigere
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	0, 0,150,	0,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "=", 0) #Nairobi - Niger 
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,  0,150,	0,	0,	0,	0,	0,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 45000) #Khartoum - Niger
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,  0,	0,	0,	0,	0,	0,	0,150,	0,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 21000) #Lusaka - Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,  0,	0,	0,	0,	0,	0,	0,  0,150,	0,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 6000) #Nairobi - Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,  0,	0,	0,	0,	0,	0,	0,  0,  0,150,	0,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 12000) #Khartoum - Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,	0,	0,	 0, 150,   0,   0,     0,     0, 0), 
+               "=", 0) #Lusaka - Chad
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,	0,	0,	 0,   0, 150,   0,     0,     0, 0), 
+               "<=", 45000) #Nairobi - Chad
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,	0,	0,	 0,   0,   0, 150,     0,     0, 0), 
+               "<=", 6000) #Khartoum - Chad
+
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,  0,17.7, 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 4425) #Luanda - Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,  0,	0,	 0,   0,   0,   0,     0,  17.7, 0), 
+               "<=", 4248) #Luanda - Chad
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,17.7,	0,	 0,   0,   0,   0,     0,     0, 0), 
+               "<=", 5310) #Libreville - Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,  0,	   0,	 0,   0,   0,   0,  17.7,     0, 0), 
+               "<=", 2832) #Libreville - Chad
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,  0,	   0,17.7,   0,   0,   0,     0,     0, 0), 
+               "<=", 12390) #Dakar - Congo
+add.constraint(lp2, c(0,	0,	0,	0,	0,	0,	0,	  0,	0,	0,	0,	  0,	0,	0,	0,	0,	0,	0,  0,	0,	0,  0,	   0,   0,   0,   0,   0,     0,     0, 17.7), 
+               "<=", 7965) #Dakar - Chad
+
+solve (lp2)
+
+#Set name for the table
+dimnames(lp2) <- list(c("NY", "FL", "Lusaca","Nairobi","Khartoum","Libreville","Luanda","Dakar","Niger","Congo","Chad", "A(NY-Lus)", "A(NY-Nairo)", "A(NY-Khar)", "A(FL-Lus)", "A(FL-Nairo)", "A(FL-Khar)", "A(Lus-Niger)","A(Nairo-Niger)","A(Khar-Niger)","A(Lus-Congo)","A(Nairo-Congo)","A(Khar-Congo)","A(Lus-CHad)","A(Nairo-Chad)","A(Khar-Chad)","T(Luanda-Congo)","T(Luanda-Chad)","T(Liber-Congo)","T(Liber-Chad)","T(Dakar-Congo)","T(Dakar-Chad)"),
+              c("NY-Lusaca",	"NY-Nairobi",	"NY-Khartoum",	"NY-Libreville",	"NY-Luanda",	"NY-Dakar", "FL-Lusaca","FL-Nairobi","FL-Khartoum","FL-Libreville",	"FL-Luanda",	"FL-Dakar",	 "Lus-Nia",	  "Nai-Nia",	"Khar-Nia",	 "Lib-Nia",	 "Lua-Nia",	 "Dak-Nia", "Lus-Congo",   "Nai-Congo",	"Khar-Congo",	 "Lib-Congo",  "Lua-Congo",  "Dak-Congo", "Lus-Chad", "Nai-Chad",  "Khar-Chad", "Lib-Chad", "Lua-Chad", "Dak-Chad"))
+
+#Write the model to double check:
+write.lp(lp2, "Maximum Flow Model", type ='lp')
+
+#Make the sensitivity Analysis:
+ps <- get.primal.solution(lp2)
+obj_sa <- get.sensitivity.obj(lp2)
+rhs_sa <- get.sensitivity.rhs(lp2)
+
+nv <- length(get.variables(lp2))
+mc <- length(get.constr.type(lp2))
+ov <- paste0("Objective Value = ", ps[1])
+
+sa_tab <- rbind(ps[2:(nv + mc + 1)], 
+                round(c(rhs_sa$duals[1:mc], obj_fn2), 2),
+                round(c(rhs_sa$dualsfrom[1:mc],obj_sa$objfrom), 2),
+                round(c(rhs_sa$dualstill[1:mc],obj_sa$objtill), 2)) 
+colnames(sa_tab) <- c(rownames(lp2), colnames(lp2))
+rownames(sa_tab) <- c("solution", "duals/coef", "Sens From", "Sens Till")  
+
+sa_tab <- ifelse(sa_tab == -1.000e+30, "-inf", sa_tab)
+sa_tab <- ifelse(sa_tab == 1.000e+30, "inf", sa_tab)
+
+kable(sa_tab, format.args = list(big.mark = ",")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>% 
+  add_footnote(label = ov, notation = "none")                
+
+#write to a file:
+write.csv(sa_tab,'Plan3.csv')
+```
+
