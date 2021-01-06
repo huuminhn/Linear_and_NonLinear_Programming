@@ -1,0 +1,256 @@
+---
+title: "Final_Part2"
+author: "Minh Nguyen"
+date: "6/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r include=FALSE}
+library(lpSolveAPI)
+`%>%` <- magrittr::`%>%`
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(patchwork)
+library(MASS) 
+library(queueing)
+
+```
+
+### Question 4: The Original Plan
+
+##### The queuing system at the presses:
+```{r echo=FALSE}
+
+#Make the queing model for the presses first:
+n <- 8; lam = 7; mu = 1; s = 10 
+
+# Build a table of results
+tab_q3a <- as.data.frame(matrix(0, n+1, 7))
+
+# Loop to build table of results
+for (i in 0:n){
+  
+  # Using "queueing" package
+  q_mod3a <- NewInput.MMC(lambda = lam, mu = mu, c = s, n = n)
+  m3a <- QueueingModel.i_MMC(q_mod3a)
+  
+  # Place results as a row in a table
+    # Multiply wait by 60 minutes in an hour to convert time from hours to minutes
+  tab_q3a[i+1,] <- round(c(i, m3a$Pn[i + 1], m3a$Inputs$c, m3a$L, m3a$Lq, m3a$W*60, m3a$Wq*60), 3) 
+}
+
+# Add column names
+colnames(tab_q3a) <- c_name <- c("Customers", "Pn", "s", "L", "Lq", "W (minutes)", "Wq (minutes)")
+
+# Show outputs
+tab_q3a %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+```
+The above table indicates that there are going to be 7.52 prints on average in a system of 10 machines, around 0.52 prints in the queue with the waiting time of 64 minutes in the whole system.  
+
+Thereby, for the presses, thee amount if in-process steady state inventory is *7.52 printings*. Each hour, it costs 7USD for the each of the presses and 8USD for each prints in the inventory. Thereby, with 7.52 prints on average in the inventory, it would cost:   
+$7*10 + 7.52*8 = 130.16 (USD)$
+
+
+##### The queuing system at the inspection point:
+
+
+```{r echo=FALSE}
+# Queing model for inspectors (M/D/1):
+n <- 10; lam = 7; mu = 8; s = 1 
+rho <- lam/(s*mu)
+
+# Probability of 0 people, see pg 751
+p0 <- 1 - rho 
+p <- lam/mu
+
+# Build a table of results, go to n + 1 so can see Pn when there are 0 print
+tab_q4b <- as.data.frame(matrix(0, n + 1, 7))
+
+# Set a loop to make steady state calculations for each level of i print in system
+for (i in 0:n){
+  # Probability of i print in queue system
+  Pn <- p0*rho^i 
+
+  # Mean number of prints in the queue pg 764
+  Lq <- p^2/(2*(1-p))
+  
+  #Mean wait time in queue waiting for service, by Little's Law pg 736
+  Wq <- Lq/lam
+  
+  # Mean wait time in queue system, by Little's Law pg 736
+  W <- Wq + 1/mu
+  
+  # Mean number of prints in queue system
+  L <- p + Lq
+  
+  # Combine in a table
+  tab_q4b[i + 1, ] <- round(c(i, Pn, s, L, Lq, W*60, Wq*60), 3) 
+}
+
+# Put header on table and name the header in the same line of code
+colnames(tab_q4b) <- c_name 
+
+# Show results, note that L, Lq, W, Wq remain constant
+tab_q4b %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+```
+
+
+Based on the above tabe, it can be seen that, for the inspector, thee amount if in-process steady state inventory is *approximately 4 printings*. Each hour, it costs 17 USD for the inspector's wage and 8USD for each prints in the inventory. Thereby, with 7 prints in the inventory, it would cost:   
+$17 + 3.94*8 = 48.52 (USD)$
+
+Hence, the *total cost* for this system per hour is:   
+$48.52 + 130.16 = 178.68 (USD)$ per hour.
+
+### Question 5: The Proposal #4
+
+##### The queuing system with slowed machines:
+
+```{r echo=FALSE}
+
+#Make the queing model for the presses with adjusted Mu:
+n <- 8; lam = 7; mu = 5/6; s = 10 
+
+# Build a table of results
+tab_pro4 <- as.data.frame(matrix(0, n+1, 7))
+
+# Loop to build table of results
+for (i in 0:n){
+  
+  # Using "queueing" package
+  q_pro4 <- NewInput.MMC(lambda = lam, mu = mu, c = s, n = n)
+  mp4 <- QueueingModel.i_MMC(q_pro4)
+  
+  # Place results as a row in a table
+    # Multiply wait by 60 minutes in an hour to convert time from hours to minutes
+  tab_pro4[i+1,] <- round(c(i, mp4$Pn[i + 1], mp4$Inputs$c, mp4$L, mp4$Lq, mp4$W*60, mp4$Wq*60), 3) 
+}
+
+# Add column names
+colnames(tab_pro4) <- c_name <- c("Customers", "Pn", "s", "L", "Lq", "W (minutes)", "Wq (minutes)")
+
+# Show outputs
+tab_pro4 %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+```
+
+The above graph indicates that around 11 prints will be in the in-process inventory and the wait time for the whole process is nearly one and a half hour.  
+By lowering down the power of the presses, there will be *approximately 11 paintings* inside the in-process inventory. Each painting still cost 8USD per hour but the machine usage now only cost 6.5 USD an hour. Thereby, the cost at the presses is:  
+$11*8 + 10*6.5 = 153 (USD)$
+
+Because of the cost at inspector section remains the same, the *total cost for Proposal 4* is going to be: 
+
+$153 + 48.52 = 201.52 (USD)$
+
+Overall, proposal 4 will be a more costly alternative comparing to the original plan. Initially, it only costs 178.68 USD per hour, but after slowing down the machines, the price increased by 12.78% and reaches 201.52 USD per hour. The reason behind this increamental is the increasing in the number of prints in the system, which cost much more than what being saved by slowing down the machines.  
+
+*I will not recommend Proposal 4*
+
+### Question 6: The Proposal #5
+
+##### The queuing system at the inpsection point with the new inspector: 
+```{r echo=FALSE}
+#Queing model for the inspector with adjusted Mu
+n <- 8; lam = 7; mu = 60/7; s = 1 
+rho <- lam/(s*mu)
+
+# Probability of 0 people, see pg 751
+p0 <- 1 - rho 
+p <- lam/mu
+
+# Build a table of results, go to n + 1 so can see Pn when there are 0 print
+tab_pro5 <- as.data.frame(matrix(0, n + 1, 7))
+
+# Set a loop to make steady state calculations for each level of i print in system
+for (i in 0:n){
+  # Probability of i print in queue system
+  Pn <- p0*rho^i 
+
+  # Mean number of prints in the queue pg 764
+  Lq <- p^2/(2*(1-p))
+  
+  #Mean wait time in queue waiting for service, by Little's Law pg 736
+  Wq <- Lq/lam
+  
+  # Mean wait time in queue system, by Little's Law pg 736
+  W <- Wq + 1/mu
+  
+  # Mean number of customers in queue system
+  L <- p + Lq
+  
+  # Combine in a table
+  tab_pro5[i + 1, ] <- round(c(i, Pn, s, L, Lq, W*60, Wq*60), 3) 
+}
+
+# Put header on table and name the header in the same line of code
+colnames(tab_pro5) <- c_name 
+
+# Show results, note that L, Lq, W, Wq remain constant
+tab_pro5 %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+Based on the table above, by replacing the inspector, the ispection rate will be improved noticeably. At this new rate, there will only be *2.64 prints* in the inventory on average and it would cost 19 USD hourly instead of 17 USD as the current inspector. Thereby, the new hourly cost for the new inspector is:  
+$19 + 2.64* 8 = 40.12 (USD)$
+
+As the rate at the machine stayed the same to the original plan, the *total hourly cost for Proposal 5* would be:  
+$130.16 + 40.12 = 170.28 (USD)$
+
+Comparing to the original plan at 178.68 USD, Proposal 5 seems to be a better strategy for costs saving. Even though the difference is only 8.4 USD an hour, yet in the long run a small change would mean significantly. *I would recommend Proposal 5 over the original Plan.*
+
+
+### Question 7:  
+
+In order to save the cost, i would recommend to increase the productivity of the presses and hiring the new inspector at the same time. The table below here will illustrate the presses point with boosted performance at 0.8 hour/print and cost 7.5 USD per hour.  
+
+```{r echo=FALSE}
+#Make the queing model for the presses with faster performance:
+n <- 8; lam = 7; mu = 1/0.8; s = 10 
+
+# Build a table of results
+tab_pro7 <- as.data.frame(matrix(0, n+1, 7))
+
+# Loop to build table of results
+for (i in 0:n){
+  
+  # Using "queueing" package
+  q_pro7 <- NewInput.MMC(lambda = lam, mu = mu, c = s, n = n)
+  mp7 <- QueueingModel.i_MMC(q_pro7)
+  
+  # Place results as a row in a table
+    # Multiply wait by 60 minutes in an hour to convert time from hours to minutes
+  tab_pro7[i+1,] <- round(c(i, mp7$Pn[i + 1], mp7$Inputs$c, mp7$L, mp7$Lq, mp7$W*60, mp7$Wq*60), 3) 
+}
+
+# Add column names
+colnames(tab_pro7) <- c_name <- c("Customers", "Pn", "s", "L", "Lq", "W (minutes)", "Wq (minutes)")
+
+# Show outputs
+tab_pro7 %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+```
+
+
+Based on the above table, it can be seen that by increasing the performance of the 10 presses, the average paintings in the in-process inventory dropped to only 5.7 an hour. The cost of operating those machines at this level is 7.5 USD per hour per press, thereby, the new expense for operating presses is:  
+$7.5*10 + 5.6*8 = 119.8 (USD)$
+
+And by hiring the new inspector, the hourly cost at the inspection point is the same with Proposal 5 at 40.12 USD an hour.  
+Hence, the total price an hour after boosting the performance of the presses and hiring a new inspector will be:  
+$119.8 + 40.12 = 159.92 (USD)$
+
+In comparision, this plan outperform the others. The main aim of this plan is to *reduce the cost of in-processing inventory by increasing the performance of the machines and hiring a more professional inspector*. While Proposal 4 were proved to have a negative effect on the hourly cost, Proposal 5 only yields a slightly better outcome by saving 8.4 USD comparing to the original plan. By using the same inspector of Proposal 5, this plan will allow Valentino to reduce the cost at the inspection point. Moreover, by learning from Proposal 4 that lowering the performance of the presses is not a good idea, this proposal will instead increase those machine capacity to lower the in-process inventory and reduce the overall cost of storing them. Thereby, for this proposal, the hourly cost at both the presses and inspection points will be decreased and leads to a better cost saving strategy.    
+Comparing to the original plan, Proposal 4 and Proposal 5, this plan would saved **18.76 USD, 41.6 USD, 10.36 USD per hour** in respective. Hence, even though Proposal 5 also reduces the hourly cost of this system, yet I would *highly recommend to follow this alternative method* for the optimal cost-saving strategy. 
+

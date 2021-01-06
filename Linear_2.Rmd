@@ -1,0 +1,667 @@
+---
+title: "Final"
+author: "Minh Nguyen"
+date: "6/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r eval=FALSE, include=FALSE}
+# Clear environment of variables and functions
+rm(list = ls(all = TRUE)) 
+
+# Clear environmet of packages
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(paste("package:", names(sessionInfo()$otherPkgs), sep=""), detach, character.only = TRUE, unload = TRUE)
+```
+
+
+```{r include=FALSE}
+# Load packages
+library(lpSolveAPI)
+`%>%` <- magrittr::`%>%`
+library(knitr)
+library(kableExtra)
+library(knitr)
+library(dplyr)
+```
+
+
+```{r include=FALSE}
+#Import the file: 
+
+df <- read.csv('Data.csv')
+
+
+```
+
+### Question 1:  
+
+```{r include=FALSE}
+#Set up the model with 1 dummy for the big M:
+bip <- make.lp(0,35)
+lp.control(bip, sense = 'max')
+
+obj_fn <- c(1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 0)
+set.objfn(bip, obj_fn)
+
+#Set up the big M:
+M <- 1000
+
+#Add in the constraints:
+
+#Collage constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0), "<=", 1)
+#Wire-mesh and computer constraint:
+add.constraint(bip, c(1, 1, 1, -1, -1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, -M), "<=", 0)
+add.constraint(bip, c(-1,-1,-1, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, M), "<=", 0 +M)
+#Photo-realistic painting constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Cubist painting constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 1, 0,
+                      0, 0, 0, 0, 0, 1, 1,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Exressionist constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+
+#Water-color painting constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 1, 0),  ">=", 1)
+#Oil painting constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),  ">=", 1)
+#Number of painting and other arts:
+add.constraint(bip, c(3, 3, 3, 3, 3, 3, 3,
+                      3, 3, -1,-1,-1,-1,-1,
+                      -1, 3, 3, 3,-1,-1,-1,
+                      -1,-1, 3, 3,-1,-1,-1,
+                      3, 3,-1,-1,-1,-1, 0),  ">=", 0)
+#Valentino constraint: 
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 1, 0), "=", 4)
+#Helen constraintL
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "=", 2)
+#David & Enquriee contraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1) #Enqruil
+
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1) #David
+
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, -1, -1, -1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "=", 0) #Equal paintings
+#Rick constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0), "<=", 1)
+#Femal artist constraint:
+add.constraint(bip, c(-1,-1,-1, 3, 3, 3, 3,
+                      -1, -1, 3, 3,-1,-1,-1,
+                      -1, 3, 3, 3,-1,-1,-1,
+                      -1,-1, -1,-1,-1, 3, 3,
+                      -1, -1, -1, -1,-1,-1, 0), ">=", 0)
+
+
+#Environmentalism constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Native American constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),">=", 1 )
+#Advance science constraint:
+add.constraint(bip, c(0, 0, 0, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),">=", 1)
+#4 sculptures constraint:
+add.constraint(bip, c(1, 1, 1, 0, 0, 0, 0,
+                      1, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "<=", 4)
+#20 painting and other arts:
+add.constraint(bip, c(0, 0, 0, 1, 1, 1, 1,
+                      0, 1, 1, 1, 1, 1, 1,
+                      1, 1, 0, 0, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1, 0), "<=", 20)
+
+#Narcissim & Reflection constraint:
+add.constraint(bip, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, -1, 0, 0, 0, 0, 0), ">=", 0)
+#Bugdet contraint:
+add.constraint(bip, c(300000, 250000, 125000, 400000, 500000, 400000, 550000, 700000, 575000, 125000, 300000, 150000, 150000,
+                     850000, 750000, 400000, 175000, 450000, 500000, 500000, 500000, 650000, 650000, 250000, 350000, 450000,
+                     400000, 400000, 300000, 300000,  50000,  50000,  50000,  50000, 0),  "<=", 4000000)
+
+# Set type to binary
+set.type(bip, 1:35, "binary")
+
+#Review the model:
+bip
+#Solve the model:
+solve(bip)
+get.objective(bip)
+a <- get.variables(bip)
+
+
+#Make the table of result:
+
+result <- df %>% slice(which(a %in% c(1)))
+
+
+```
+
+In total, there are **15 pieces** going to be displayed in the exhibit without exceeding the budget. Based on the result, those pieces are:
+
+```{r echo=FALSE}
+result %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+```
+
+
+### Question 2:
+
+```{r include=FALSE}
+#Set up the model with 1 dummy for the big M:
+bip2 <- make.lp(0,35)
+lp.control(bip2, sense = "min")
+
+#set the objective function:
+
+obj_fn2 <- c(300000, 250000, 125000, 400000, 500000, 400000, 550000,  700000, 575000, 125000, 300000, 150000, 150000, 850000, 750000, 400000, 175000, 450000, 500000, 500000, 500000, 650000, 650000, 250000, 350000, 450000, 400000, 400000, 300000, 300000,  50000,  50000,  50000,  50000, 0)
+set.objfn(bip2,obj_fn2)
+#Set up the big M:
+M <- 1000
+
+#Add in the constraints:
+#Collage constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0), "<=", 1)
+#Wire-mesh and computer constraint:
+add.constraint(bip2, c(1, 1, 1, -1, -1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, -M), "<=", 0)
+add.constraint(bip2, c(-1,-1,-1, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, M), "<=", 0 +M)
+#Photo-realistic painting constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Cubist painting constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 1, 0,
+                      0, 0, 0, 0, 0, 1, 1,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Exressionist constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+
+#Water-color painting constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 1, 0),  ">=", 1)
+#Oil painting constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),  ">=", 1)
+#Number of painting and other arts:
+add.constraint(bip2, c(3, 3, 3, 3, 3, 3, 3,
+                      3, 3, -1,-1,-1,-1,-1,
+                      -1, 3, 3, 3,-1,-1,-1,
+                      -1,-1, 3, 3,-1,-1,-1,
+                      3, 3,-1,-1,-1,-1, 0),  ">=", 0)
+#Valentino constraint: 
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 1, 0), "=", 4)
+#Helen constraintL
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "=", 2)
+#David & Enquriee contraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1) #Enqruil
+
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1) #David
+
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, -1, -1, -1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "=", 0) #Equal paintings
+#Rick constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0), "<=", 1)
+#Femal artist constraint:
+add.constraint(bip2, c(-1,-1,-1, 3, 3, 3, 3,
+                      -1, -1, 3, 3,-1,-1,-1,
+                      -1, 3, 3, 3,-1,-1,-1,
+                      -1,-1, -1,-1,-1, 3, 3,
+                      -1, -1, -1, -1,-1,-1, 0), ">=", 0)
+
+
+#Environmentalism constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Native American constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),">=", 1 )
+#Advance science constraint:
+add.constraint(bip2, c(0, 0, 0, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),">=", 1)
+#4 sculptures constraint:
+add.constraint(bip2, c(1, 1, 1, 0, 0, 0, 0,
+                      1, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "<=", 4)
+#20 painting and other arts:
+add.constraint(bip2, c(0, 0, 0, 1, 1, 1, 1,
+                      0, 1, 1, 1, 1, 1, 1,
+                      1, 1, 0, 0, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1, 0), "<=", 20)
+
+#Narcissim & Reflection constraint:
+add.constraint(bip2, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, -1, 0, 0, 0, 0, 0), ">=", 0)
+#Include at least 20 pieces:
+add.constraint(bip2, c(1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 0), ">=", 20)
+
+# Set type to binary
+set.type(bip2, 1:35, "binary")
+
+# review model
+bip2
+# Solve the model
+solve(bip2)
+
+get.objective(bip2)
+b<- get.variables(bip2)
+
+#Make the table of resut:
+result2 <- df %>% slice(which(b %in% c(1)))
+
+result2
+```
+The minimized cost for displaying at least 20 art pieces and meeting the requirements set by Valentino and Celeste is **5,400,000 USD.**  
+There are total of **20 art pieces** will be displayed, namely:  
+
+```{r echo=FALSE}
+result2 %>% 
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+```
+
+
+### Question 3:
+
+```{r include=FALSE}
+# number of simulations
+n <- 1000
+
+# Intialize vector to hold simulation results
+res_wc <- vector()
+
+# Generate random variables
+set.seed(1234)
+w1  <- rnorm(n, mean = 300000, sd = 34641)
+w2  <- rnorm(n, mean = 250000, sd = 28867.5)
+w3  <- rnorm(n, mean = 125000, sd = 14433.8)
+w4  <- rnorm(n, mean = 400000, sd = 46188)
+w5  <- rnorm(n, mean = 500000, sd = 57735)
+w6  <- rnorm(n, mean = 400000, sd = 46188)
+w7  <- rnorm(n, mean = 550000, sd = 63508.5)
+w8  <- rnorm(n, mean = 700000, sd = 80829)
+w9  <- rnorm(n, mean = 575000, sd = 66395.2)
+w10 <- rnorm(n, mean = 125000, sd = 14433.8)
+w11 <- rnorm(n, mean = 300000, sd = 34641)
+w12 <- rnorm(n, mean = 150000, sd = 17320.5)
+w13 <- rnorm(n, mean = 150000, sd = 17320.5)
+w14 <- rnorm(n, mean = 850000, sd = 98149.5)
+w15 <- rnorm(n, mean = 750000, sd = 86602.5)
+w16 <- rnorm(n, mean = 400000, sd = 46188)
+w17 <- rnorm(n, mean = 175000, sd = 20207.3)
+w18 <- rnorm(n, mean = 450000, sd = 51961.5)
+w19 <- rnorm(n, mean = 500000, sd = 57735)
+w20 <- rnorm(n, mean = 500000, sd = 57735)
+w21 <- rnorm(n, mean = 500000, sd = 57735)
+w22 <- rnorm(n, mean = 650000, sd = 75055.5)
+w23 <- rnorm(n, mean = 650000, sd = 75055.5)
+w24 <- rnorm(n, mean = 250000, sd = 28867.5)
+w25 <- rnorm(n, mean = 350000, sd = 40414.5)
+w26 <- rnorm(n, mean = 450000, sd = 51961.5)
+w27 <- rnorm(n, mean = 400000, sd = 46188)
+w28 <- rnorm(n, mean = 400000, sd = 46188)
+w29 <- rnorm(n, mean = 300000, sd = 34641)
+w30 <- rnorm(n, mean = 300000, sd = 34641)
+w31 <- rnorm(n, mean =  50000, sd = 5773.5)
+w32 <- rnorm(n, mean =  50000, sd = 5773.5)
+w33 <- rnorm(n, mean =  50000, sd = 5773.5)
+w34 <- rnorm(n, mean =  50000, sd = 5773.5)
+
+
+# Set up the big M: 
+M <- 1000
+
+# for-loop set up
+for(i in 1:n){
+  # Define parameters of the ip
+  bip3 <- make.lp(0, 35)
+  set.objfn(bip3, c(sample(w1, 1, replace = TRUE),
+                   sample(w2, 1, replace = TRUE),
+                   sample(w3, 1, replace = TRUE),
+                   sample(w4, 1, replace = TRUE),
+                   sample(w5, 1, replace = TRUE),
+                   sample(w6, 1, replace = TRUE),
+                   sample(w7, 1, replace = TRUE),
+                   sample(w8, 1, replace = TRUE),
+                   sample(w9, 1, replace = TRUE),
+                   sample(w10, 1, replace = TRUE),
+                   sample(w11, 1, replace = TRUE),
+                   sample(w12, 1, replace = TRUE),
+                   sample(w13, 1, replace = TRUE),
+                   sample(w14, 1, replace = TRUE),
+                   sample(w15, 1, replace = TRUE),
+                   sample(w16, 1, replace = TRUE),
+                   sample(w17, 1, replace = TRUE),
+                   sample(w18, 1, replace = TRUE),
+                   sample(w19, 1, replace = TRUE),
+                   sample(w20, 1, replace = TRUE),
+                   sample(w21, 1, replace = TRUE),
+                   sample(w22, 1, replace = TRUE),
+                   sample(w23, 1, replace = TRUE),
+                   sample(w24, 1, replace = TRUE),
+                   sample(w25, 1, replace = TRUE),
+                   sample(w26, 1, replace = TRUE),
+                   sample(w27, 1, replace = TRUE),
+                   sample(w28, 1, replace = TRUE),
+                   sample(w29, 1, replace = TRUE),
+                   sample(w30, 1, replace = TRUE),
+                   sample(w31, 1, replace = TRUE),
+                   sample(w32, 1, replace = TRUE),
+                   sample(w33, 1, replace = TRUE),
+                   sample(w34, 1, replace = TRUE), 0))
+  #Collage constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0, 0, 0,
+                      0, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0), "<=", 1)
+#Wire-mesh and computer constraint:
+  add.constraint(bip3, c(1, 1, 1, -1, -1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, -M), "<=", 0)
+  add.constraint(bip3, c(-1,-1,-1, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, M), "<=", 0 +M)
+#Photo-realistic painting constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Cubist painting constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 1, 0,
+                      0, 0, 0, 0, 0, 1, 1,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Exressionist constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+
+#Water-color painting constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 1, 0),  ">=", 1)
+#Oil painting constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),  ">=", 1)
+#Number of painting and other arts:
+  add.constraint(bip3, c(3, 3, 3, 3, 3, 3, 3,
+                      3, 3, -1,-1,-1,-1,-1,
+                      -1, 3, 3, 3,-1,-1,-1,
+                      -1,-1, 3, 3,-1,-1,-1,
+                      3, 3,-1,-1,-1,-1, 0),  ">=", 0)
+#Valentino constraint: 
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 1, 0), "=", 4)
+#Helen constraintL
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "=", 2)
+#David & Enquriee contraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1) #Enqruil
+
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 1, 1, 1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1) #David
+
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 1,
+                      1, 0, 0, 0, -1, -1, -1,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "=", 0) #Equal paintings
+#Rick constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0), "<=", 1)
+#Femal artist constraint:
+  add.constraint(bip3, c(-1,-1,-1, 3, 3, 3, 3,
+                      -1, -1, 3, 3,-1,-1,-1,
+                      -1, 3, 3, 3,-1,-1,-1,
+                      -1,-1, -1,-1,-1, 3, 3,
+                      -1, -1, -1, -1,-1,-1, 0), ">=", 0)
+
+
+#Environmentalism constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), ">=", 1)
+#Native American constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),">=", 1 )
+#Advance science constraint:
+  add.constraint(bip3, c(0, 0, 0, 1, 1, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      1, 1, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0),">=", 1)
+#4 sculptures constraint:
+  add.constraint(bip3, c(1, 1, 1, 0, 0, 0, 0,
+                      1, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 1, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0), "<=", 4)
+#20 painting and other arts:
+  add.constraint(bip3, c(0, 0, 0, 1, 1, 1, 1,
+                      0, 1, 1, 1, 1, 1, 1,
+                      1, 1, 0, 0, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1, 0), "<=", 20)
+
+#Narcissim & Reflection constraint:
+  add.constraint(bip3, c(0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 1, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, 0,
+                      0, -1, 0, 0, 0, 0, 0), ">=", 0)
+#Include at least 20 pieces:
+  add.constraint(bip3, c(1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 1,
+                       1, 1, 1, 1, 1, 1, 0), ">=", 20)
+
+# Set type to binary
+  set.type(bip3, 1:35, "binary")
+  # Solve model
+  solve(bip3)
+  # Output
+    res_wc <- rbind(res_wc, get.primal.solution(bip3))
+  }
+
+# Make table
+out_w <- round(rbind(apply(res_wc, 2, mean), apply(res_wc, 2, sd), 
+             apply(res_wc, 2, max), apply(res_wc, 2, min)), 2)
+rownames(out_w) <- c("mean", "sd", "max", "min")
+
+```
+
+
+```{r echo=FALSE}
+# Print output
+kable(out_w, caption = "mapply results") %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+Based on the above table, it can be seen that the cost will vary on a range from nearly 4.8 million USD to over 5.8 million USD with the mean of 5.3 million USD. Comparing to the original plan of 5.4 million USD, the price change of the art pieces would noticeably impact to Celeste’s's budget. Depend on which art piece will be displayed and what is their real prices are going to be, Celeste might have to increase or cut off the budget **betweeen 4.8 million and 5.8 million USD.** Thereby, Celeste should prepare enough fund if he intends to get all of the desired art pieces on display.  
+
+
+
+
