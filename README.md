@@ -10,7 +10,7 @@ The results and conclusion will be provided in a Rmarkdown file.
 Using **lpSolveAPI** and **igraph** to visualize the solutions, there will be three main problems solved within this scope:  
 - Shortest path.
 - Minimum cost.
-- Maximum flow. 
+- Maximu flow. 
 
 ---
 <img src="Queing_resize.png?raw=true"/>  
