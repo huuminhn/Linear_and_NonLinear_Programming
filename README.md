@@ -9,7 +9,7 @@ The results and conclusion will be provided in a Rmarkdown file.
 ### Linear Programming:
 Using **lpSolveAPI** and **igraph** to visualize the solutions, there will be three main problems solved within this scope:  
 - Shortest path.
-- Minimum cost.
+- Minimu cost.
 - Maximum flow. 
 
 ---
