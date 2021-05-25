@@ -1,7 +1,7 @@
 ## Linear and Non-Linear Programming
 These are the my academic projects, using R to solve the linear and non-linear programming problems.  
 Data is collected from an open source to serve the academic purposes.
-The results and conclusion will be provided in a Rmarkdown file.
+The results and conclusion will be provided in  Rmarkdown file.
 
 ---
 <img src="Linear_resize.jpg?raw=true"/>  
